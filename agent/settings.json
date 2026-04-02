@@ -1,0 +1,58 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ewfverify:*)",
+      "Bash(ewfmount:*)",
+      "Bash(mmls:*)",
+      "Bash(mount -o ro*)",
+      "Bash(umount:*)",
+      "Bash(fls:*)",
+      "Bash(icat:*)",
+      "Bash(vol:*)",
+      "Bash(yara:*)",
+      "Bash(find /tmp*)",
+      "Bash(ls:*)",
+      "Bash(cat /tmp*)",
+      "Bash(cat /cases/*/analysis/*)",
+      "Bash(cat /cases/*/reports/*)",
+      "mcp__sift-mcp__get_amcache",
+      "mcp__sift-mcp__extract_mft_timeline",
+      "mcp__sift-mcp__run_volatility",
+      "mcp__sift-mcp__scan_yara",
+      "mcp__sift-mcp__get_event_logs",
+      "mcp__sift-mcp__get_registry_key",
+      "mcp__sift-mcp__get_prefetch",
+      "mcp__sift-mcp__get_network_connections"
+    ],
+    "deny": [
+      "Bash(rm*)",
+      "Bash(dd*)",
+      "Bash(wget*)",
+      "Bash(curl*)",
+      "Bash(ssh*)",
+      "Bash(scp*)",
+      "Bash(rsync*)",
+      "Bash(shred*)",
+      "Bash(mkfs*)",
+      "Bash(fdisk*)",
+      "Bash(mount -o rw*)",
+      "WebFetch(*)",
+      "WebSearch(*)"
+    ]
+  },
+  "mcpServers": {
+    "sift-mcp": {
+      "command": "python3",
+      "args": ["/opt/find-evil/sift-mcp-server/server.py"],
+      "description": "FIND EVIL custom MCP server — typed, read-only SIFT tool wrappers"
+    }
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "python3 /opt/find-evil/analysis-scripts/audit_hook.py"
+      }
+    ]
+  }
+}

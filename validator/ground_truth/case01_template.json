@@ -1,0 +1,44 @@
+{
+  "_comment": "Ground truth template. Fill in with known-good findings from sample case data.",
+  "_instructions": [
+    "Replace artifacts[] with the actual confirmed malicious artifacts in the sample case.",
+    "Replace iocs[] with known IOCs (IPs, file hashes, process names, registry keys).",
+    "This file is used by run_benchmark.py to score agent output."
+  ],
+  "case_id": "CASE01",
+  "case_description": "Hackathon sample case — fill in after reviewing sample data",
+  "artifacts": [
+    {
+      "id": "ART-001",
+      "description": "Malicious executable dropped to C:\\Users\\Public\\malware.exe",
+      "type": "file",
+      "category": "initial_access",
+      "sha1": "REPLACE_WITH_ACTUAL_SHA1",
+      "timestamp_utc": "REPLACE_WITH_ACTUAL_TIMESTAMP"
+    },
+    {
+      "id": "ART-002",
+      "description": "Registry run key added for persistence: HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+      "type": "registry",
+      "category": "persistence"
+    },
+    {
+      "id": "ART-003",
+      "description": "Process injection into svchost.exe (PID XXXX)",
+      "type": "process",
+      "category": "defense_evasion"
+    }
+  ],
+  "iocs": [
+    "REPLACE_WITH_MALICIOUS_IP",
+    "REPLACE_WITH_MALICIOUS_SHA1",
+    "REPLACE_WITH_MALICIOUS_FILENAME"
+  ],
+  "timeline": [
+    {
+      "timestamp_utc": "REPLACE",
+      "event": "Initial compromise",
+      "confidence": "CONFIRMED"
+    }
+  ]
+}

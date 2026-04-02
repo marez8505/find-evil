@@ -1,0 +1,26 @@
+# Case data — never commit evidence
+/cases/
+/mnt/
+
+# Logs (contain case-sensitive data)
+logs/
+*.log
+
+# Temp output dirs
+/tmp/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+
+# Reports with case data
+reports/
+analysis/
+
+# Editor
+.vscode/
+.idea/
+*.swp
