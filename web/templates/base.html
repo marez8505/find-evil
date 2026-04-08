@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}FIND EVIL{% endblock %} — Autonomous DFIR Agent</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+
+{% if session.authenticated %}
+<header class="topbar">
+  <a href="{{ url_for('dashboard') }}" class="topbar-brand">
+    <svg class="brand-icon" width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+      <circle cx="13" cy="13" r="12" stroke="#c0392b" stroke-width="1.5"/>
+      <ellipse cx="13" cy="13" rx="7" ry="4.5" stroke="#c0392b" stroke-width="1.2"/>
+      <circle cx="13" cy="13" r="2" fill="#c0392b"/>
+      <line x1="4" y1="13" x2="7" y2="13" stroke="#c0392b" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="19" y1="13" x2="22" y2="13" stroke="#c0392b" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    <span class="brand-name">FIND EVIL</span>
+  </a>
+
+  <nav class="topbar-nav">
+    <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+      Dashboard
+    </a>
+  </nav>
+
+  <form action="{{ url_for('logout') }}" method="post" class="topbar-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <span class="status-dot"></span>
+    <span class="status-label">SIFT</span>
+    <button type="submit" class="btn-ghost">Logout</button>
+  </form>
+</header>
+{% endif %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="flash-wrap">
+  {% for cat, msg in messages %}
+  <div class="flash flash-{{ cat }}">{{ msg }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

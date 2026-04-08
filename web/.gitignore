@@ -1,0 +1,9 @@
+# NEVER commit the .env — contains password hash and secret key
+.env
+
+# Flask sessions
+flask_session/
+
+# Python
+__pycache__/
+*.pyc

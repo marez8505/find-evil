@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}{{ case.id }}{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  <div class="page-header">
+    <div class="breadcrumb">
+      <a href="{{ url_for('dashboard') }}" class="breadcrumb-link">← Dashboard</a>
+      <span class="breadcrumb-sep">/</span>
+      <span class="breadcrumb-current">{{ case.id }}</span>
+    </div>
+    <span id="status-badge" class="status-badge status-{{ case.status }}">
+      {{ case.status | upper }}
+    </span>
+  </div>
+
+  <div class="case-layout">
+
+    <!-- LEFT: Configuration -->
+    <aside class="case-sidebar">
+      <div class="panel">
+        <h2 class="panel-title">Configuration</h2>
+        <form id="config-form" class="config-form">
+          <input type="hidden" name="csrf_token" id="config-csrf" value="{{ csrf_token() }}">
+
+          <label class="field-label" for="disk_path">Disk Image Path</label>
+          <input
+            id="disk_path"
+            type="text"
+            name="disk_path"
+            class="field-input mono"
+            placeholder="/mnt/case_disk"
+            value="{{ case.config.disk_path }}"
+          >
+
+          <label class="field-label" for="memory_path">Memory Image Path</label>
+          <input
+            id="memory_path"
+            type="text"
+            name="memory_path"
+            class="field-input mono"
+            placeholder="/cases/{{ case.id }}/memory.raw"
+            value="{{ case.config.memory_path }}"
+          >
+
+          <label class="field-label" for="max_iterations">Max Iterations</label>
+          <input
+            id="max_iterations"
+            type="number"
+            name="max_iterations"
+            class="field-input"
+            min="1" max="20"
+            value="{{ case.config.max_iterations }}"
+          >
+
+          <button type="button" id="save-btn" class="btn-secondary btn-full" onclick="saveConfig()">
+            Save Config
+          </button>
+          <span id="save-status" class="save-status"></span>
+        </form>
+      </div>
+
+      {% if case.accuracy %}
+      <div class="panel panel-accuracy">
+        <h2 class="panel-title">Accuracy</h2>
+        {% set s = case.accuracy.scores %}
+        {% if s %}
+        <div class="accuracy-grid">
+          <div class="acc-item">
+            <span class="acc-val">{{ "%.1f"|format(s.precision * 100) }}%</span>
+            <span class="acc-lbl">Precision</span>
+          </div>
+          <div class="acc-item">
+            <span class="acc-val">{{ "%.1f"|format(s.recall * 100) }}%</span>
+            <span class="acc-lbl">Recall</span>
+          </div>
+          <div class="acc-item">
+            <span class="acc-val">{{ "%.4f"|format(s.f1_score) }}</span>
+            <span class="acc-lbl">F1</span>
+          </div>
+          <div class="acc-item">
+            <span class="acc-val {% if s.hallucination_rate > 0.1 %}val-warn{% endif %}">
+              {{ "%.1f"|format(s.hallucination_rate * 100) }}%
+            </span>
+            <span class="acc-lbl">Hallucination</span>
+          </div>
+        </div>
+        {% set integ = case.accuracy.evidence_integrity %}
+        {% if integ %}
+        <div class="integrity-row">
+          <span class="integrity-dot {% if integ.integrity_passed %}dot-pass{% else %}dot-fail{% endif %}"></span>
+          <span class="integrity-label">
+            Evidence Integrity: {% if integ.integrity_passed %}PASS{% else %}FAIL{% endif %}
+          </span>
+        </div>
+        {% endif %}
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% if case.has_report %}
+      <a href="{{ url_for('download_report', case_id=case.id) }}" class="btn-secondary btn-full btn-report">
+        ↓ Download PDF Report
+      </a>
+      {% endif %}
+    </aside>
+
+    <!-- RIGHT: Analysis + Findings -->
+    <section class="case-main">
+
+      <!-- Analysis Controls -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Live Analysis</h2>
+          <div class="analysis-controls">
+            <button
+              id="run-btn"
+              class="btn-primary"
+              onclick="runAnalysis('{{ case.id }}')"
+              {% if case.status == 'running' %}disabled{% endif %}
+            >▶ Start</button>
+            <button
+              id="stop-btn"
+              class="btn-danger"
+              onclick="stopAnalysis('{{ case.id }}')"
+              {% if case.status != 'running' %}disabled{% endif %}
+            >■ Stop</button>
+          </div>
+        </div>
+
+        <!-- Log Viewer -->
+        <div class="log-toolbar">
+          <span id="log-status" class="log-status-label">
+            {% if case.status == 'running' %}Streaming...{% else %}Idle{% endif %}
+          </span>
+          <div class="log-actions">
+            <button class="btn-micro" onclick="clearLog()">Clear</button>
+            <button class="btn-micro" id="autoscroll-btn" onclick="toggleAutoscroll()" title="Autoscroll">↓</button>
+          </div>
+        </div>
+        <div id="log-viewer" class="log-viewer" aria-live="polite" aria-label="Analysis log">
+          <div id="log-content" class="log-content"></div>
+        </div>
+      </div>
+
+      <!-- Findings -->
+      <div class="panel" id="findings-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Findings</h2>
+          <div class="findings-pills">
+            <span class="pill pill-confirmed" id="pill-confirmed">{{ case.findings.get('findings', []) | selectattr('confidence', 'equalto', 'CONFIRMED') | list | length }} Confirmed</span>
+            <span class="pill pill-inferred"  id="pill-inferred">{{ case.findings.get('findings', []) | selectattr('confidence', 'equalto', 'INFERRED') | list | length }} Inferred</span>
+            <span class="pill pill-unconfirmed" id="pill-unconfirmed">{{ case.findings.get('findings', []) | selectattr('confidence', 'equalto', 'UNCONFIRMED') | list | length }} Unconfirmed</span>
+          </div>
+        </div>
+
+        {% set all_findings = case.findings.get('findings', []) %}
+        {% set confirmed   = all_findings | selectattr('confidence', 'equalto', 'CONFIRMED')   | list %}
+        {% set inferred    = all_findings | selectattr('confidence', 'equalto', 'INFERRED')    | list %}
+        {% set unconfirmed = all_findings | selectattr('confidence', 'equalto', 'UNCONFIRMED') | list %}
+
+        {% if not all_findings %}
+        <div id="findings-empty" class="findings-empty">No findings yet. Run an analysis to begin.</div>
+        {% endif %}
+
+        <table id="findings-table" class="findings-table" {% if not all_findings %}style="display:none"{% endif %}>
+          <thead>
+            <tr>
+              <th>Confidence</th>
+              <th>Finding</th>
+              <th>Source Tool</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody id="findings-body">
+          {% for f in (confirmed + inferred + unconfirmed) %}
+            <tr>
+              <td><span class="conf-badge conf-{{ f.confidence }}">{{ f.confidence }}</span></td>
+              <td class="td-finding">{{ f.finding }}</td>
+              <td class="td-tool">{{ f.source_tool or '—' }}</td>
+              <td class="td-time">{{ f.timestamp_utc or '—' }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Success Criteria -->
+      {% set criteria = case.findings.get('criteria', {}) %}
+      {% if criteria %}
+      <div class="panel" id="criteria-panel">
+        <h2 class="panel-title">Investigation Criteria</h2>
+        <div id="criteria-grid" class="criteria-grid">
+          {% for key, met in criteria.items() %}
+          <div class="criteria-item">
+            <span class="criteria-check {% if met %}met{% else %}unmet{% endif %}">{% if met %}✓{% else %}○{% endif %}</span>
+            <span>{{ key | replace('_', ' ') }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <div class="panel" id="criteria-panel" style="display:none">
+        <h2 class="panel-title">Investigation Criteria</h2>
+        <div id="criteria-grid" class="criteria-grid"></div>
+      </div>
+      {% endif %}
+
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const CASE_ID   = {{ case.id | tojson }};
+  const CSRF      = {{ csrf_token() | tojson }};
+  const STATUS    = {{ case.status | tojson }};
+
+  // Auto-connect stream if already running
+  if (STATUS === 'running') {
+    connectStream(CASE_ID);
+  }
+
+  // Always load findings on page load
+  loadFindings(CASE_ID);
+</script>
+{% endblock %}

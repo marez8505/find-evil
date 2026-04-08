@@ -76,10 +76,10 @@ A fully autonomous incident response agent built on the SANS SIFT Workstation an
 
 ```bash
 # Option 1: One-liner (on SIFT Workstation)
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/find-evil/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/marez8505/find-evil/main/install.sh | bash
 
 # Option 2: Clone and install
-git clone https://github.com/YOUR_USERNAME/find-evil.git
+git clone https://github.com/marez8505/find-evil.git
 cd find-evil
 bash install.sh
 ```
@@ -200,7 +200,73 @@ find-evil/
 | Breadth & Depth | 8 MCP tools covering disk, memory, registry, network, YARA |
 | Constraint Implementation | **Architectural** — MCP server never exposes destructive commands |
 | Audit Trail Quality | Every MCP call logged: timestamp, args, SHA256 of output, token estimate |
-| Usability & Documentation | One-liner install, case templates, full README |
+| Usability & Documentation | One-liner install, case templates, full README, web GUI |
+
+---
+
+## Web GUI
+
+A secure browser-based interface for FIND EVIL runs locally on your SIFT workstation — no network exposure, no external dependencies.
+
+### First-time setup
+
+```bash
+cd /opt/find-evil/web
+pip3 install -r requirements.txt
+```
+
+### Launch
+
+```bash
+bash /opt/find-evil/web/start.sh
+```
+
+On first run the script generates a random password and prints it **once** — save it immediately. Open your browser to **http://127.0.0.1:8080** to log in.
+
+> The server binds to `127.0.0.1` only and is never reachable from the network.
+
+### Security design
+
+| Control | Implementation |
+|---|---|
+| Authentication | bcrypt password hash stored in `web/.env` — never in source |
+| CSRF protection | Unique token required on every state-changing POST |
+| Login rate limiting | 5 attempts / 5 min per IP (in-memory, reset on restart) |
+| Content Security Policy | `default-src 'self'` — no external fonts, scripts, or connections |
+| Path traversal | Case IDs validated against `^[A-Za-z0-9_-]{1,32}$` |
+| No CDN | System fonts only — all assets bundled, no outbound requests |
+| Session cookies | `HttpOnly`, `SameSite=Strict` |
+| Subprocess isolation | All tool commands use list args — no shell injection possible |
+| Evidence safety | All tool outputs written to `/tmp/` — evidence directories never touched |
+
+### Features
+
+- **Dashboard** — case grid with IDLE / RUNNING / DONE status badges and finding counts
+- **Case view** — configure evidence paths and max iterations, then click **Start**
+- **Live log viewer** — SSE-streamed output with color-coded confidence lines
+  - `CONFIRMED` → green, `INFERRED` → amber, `UNCONFIRMED` → red, corrections → purple
+- **Findings table** — pre-rendered at page load, auto-refreshes on analysis completion
+- **Investigation criteria** — checklist of DFIR coverage goals
+- **PDF download** — one-click incident report generation per case
+
+### Web GUI structure
+
+```
+web/
+├── app.py              ← Flask app — auth, routing, SSE, subprocess management
+├── requirements.txt    ← flask, bcrypt, python-dotenv
+├── start.sh            ← Launcher (generates password on first run)
+├── .gitignore          ← .env excluded — never committed
+├── templates/
+│   ├── base.html       ← Nav, flash messages
+│   ├── login.html      ← Standalone auth page
+│   ├── dashboard.html  ← Case grid + new case modal
+│   ├── case.html       ← Config sidebar + live analysis + findings
+│   └── error.html
+└── static/
+    ├── css/app.css     ← Dark SOC theme — zero CDN
+    └── js/app.js       ← Vanilla JS — SSE streaming, AJAX, DOM rendering
+```
 
 ---
 
