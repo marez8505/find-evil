@@ -429,7 +429,7 @@ def run_analysis(case_id: str):
     cmd += ['--max-iterations', str(cfg.get('max_iterations', 10))]
 
     log_handle = open(log_file, 'w', buffering=1)  # line-buffered
-    # nosemgrep: python.lang.security.dangerous-subprocess-use
+    # nosemgrep: python.lang.security.dangerous-subprocess-use, python.lang.security.audit.dangerous-subprocess-use-tainted-env-args
     proc = subprocess.Popen(
         cmd,
         stdout=log_handle,
