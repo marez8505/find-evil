@@ -45,6 +45,41 @@ CASES_DIR = Path(os.getenv('CASES_DIR', '/cases'))
 LOOP_PY   = str(PROJECT_DIR / 'agent' / 'loop.py')
 PORT      = int(os.getenv('PORT', 8080))
 
+# ── Path Validation (Security: CWE-78 Command Injection Prevention) ──────────
+
+def _validate_data_path(user_path: str | None, case_dir: Path) -> str | None:
+    """
+    Validate that user_path is within the case directory.
+    Prevents path traversal and command injection attacks.
+    
+    Args:
+        user_path: User-provided file path from config
+        case_dir: The current case's directory (safe boundary)
+    
+    Returns:
+        Validated absolute path, or None if invalid
+    
+    Raises:
+        ValueError: If path is outside case directory
+    """
+    if not user_path:
+        return None
+    
+    # Resolve to absolute path
+    p = Path(user_path).resolve()
+    
+    # Ensure path is within case directory
+    try:
+        p.relative_to(case_dir.resolve())
+    except ValueError:
+        raise ValueError(f'Path {user_path} is outside case directory {case_dir}')
+    
+    # Ensure path exists and is readable
+    if not p.exists():
+        raise ValueError(f'Path {user_path} does not exist')
+    
+    return str(p)
+
 # ── First-run password generation ────────────────────────────────────────────
 
 def _ensure_password():
@@ -379,11 +414,18 @@ def run_analysis(case_id: str):
     # Truncate log for new run
     log_file.write_text('')
 
+    # Validate paths from user config to prevent command injection (CWE-78)
+    try:
+        disk_path = _validate_data_path(cfg.get('disk_path'), case_dir)
+        memory_path = _validate_data_path(cfg.get('memory_path'), case_dir)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
     cmd = ['python3', LOOP_PY, '--case', str(case_dir)]
-    if cfg.get('disk_path'):
-        cmd += ['--disk', cfg['disk_path']]
-    if cfg.get('memory_path'):
-        cmd += ['--memory', cfg['memory_path']]
+    if disk_path:
+        cmd += ['--disk', disk_path]
+    if memory_path:
+        cmd += ['--memory', memory_path]
     cmd += ['--max-iterations', str(cfg.get('max_iterations', 10))]
 
     log_handle = open(log_file, 'w', buffering=1)  # line-buffered
